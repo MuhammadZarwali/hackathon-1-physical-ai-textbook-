@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: Physical AI Textbook RAG API
+  description: RESTful API for RAG (Retrieval-Augmented Generation) chatbot serving educational content from the Physical AI & Humanoid Robotics textbook
+  version: 1.0.0
+  contact:
+    name: Panaversity Hackathon Team
+    url: https://github.com/[your-username]/hackathon-1
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://[your-deployment].railway.app
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the RAG API
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "RAG API"
+
+  /query:
+    post:
+      summary: Query the textbook
+      description: Submit a question to the RAG system and receive an AI-generated answer based on textbook content
+      operationId: queryTextbook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Successful query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /embed:
+    post:
+      summary: Embed chapter content
+      description: Ingest chapter content and create embeddings for RAG retrieval (admin endpoint)
+      operationId: embedContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbedRequest'
+      responses:
+        '200':
+          description: Content embedded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chunks_created:
+                    type: integer
+                    example: 12
+                  chapter_id:
+                    type: string
+                    example: "chapter-1-introduction-to-ros2"
+        '400':
+          description: Invalid content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: User's question or search query
+          maxLength: 500
+          example: "What is ROS 2 and why does it matter for physical AI?"
+        selected_text:
+          type: string
+          description: Optional user-highlighted text passage for context
+          nullable: true
+          example: "ROS 2 is a middleware framework..."
+        persona:
+          type: string
+          description: User persona for personalized responses
+          enum: [beginner, software_engineer, robotics_student, ai_researcher]
+          default: software_engineer
+          example: "beginner"
+        context_mode:
+          type: string
+          description: Scope of context for retrieval
+          enum: [full_book, selected_text_only, current_chapter]
+          default: full_book
+          example: "full_book"
+        current_chapter:
+          type: string
+          description: Optional chapter ID for context-aware retrieval
+          nullable: true
+          example: "chapter-1-introduction-to-ros2"
+        max_chunks:
+          type: integer
+          description: Maximum number of chunks to retrieve
+          minimum: 1
+          maximum: 10
+          default: 5
+          example: 5
+        include_citations:
+          type: boolean
+          description: Whether to include source citations in response
+          default: true
+          example: true
+
+    QueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+          description: AI-generated answer based on textbook content
+          example: "ROS 2 (Robot Operating System 2) is a middleware framework that provides communication infrastructure for robot software development. It matters for physical AI because..."
+        sources:
+          type: array
+          description: List of source chunks used to generate the answer
+          items:
+            $ref: '#/components/schemas/Source'
+        chunks_retrieved:
+          type: integer
+          description: Number of chunks retrieved from vector database
+          example: 5
+        persona_used:
+          type: string
+          description: Persona applied for response generation
+          example: "beginner"
+        processing_time_ms:
+          type: integer
+          description: Time taken to process the query (milliseconds)
+          example: 1250
+
+    Source:
+      type: object
+      properties:
+        chapter_title:
+          type: string
+          description: Title of the source chapter
+          example: "Chapter 1: Introduction to ROS 2"
+        section_title:
+          type: string
+          description: Title of the source section
+          example: "What Problem ROS 2 Solves"
+        url:
+          type: string
+          description: URL to the source content
+          example: "/module-1-ros2/chapter-1-introduction-to-ros2#what-problem-ros2-solves"
+        relevance_score:
+          type: number
+          format: float
+          description: Relevance score (0-1) from vector search
+          example: 0.87
+
+    EmbedRequest:
+      type: object
+      required:
+        - chapter_id
+        - content
+        - metadata
+      properties:
+        chapter_id:
+          type: string
+          description: Unique identifier for the chapter
+          example: "chapter-1-introduction-to-ros2"
+        content:
+          type: string
+          description: Full chapter content in Markdown format
+          example: "# Chapter 1: Introduction to ROS 2\n\n## Learning Objectives..."
+        metadata:
+          type: object
+          description: Chapter metadata from frontmatter
+          properties:
+            title:
+              type: string
+              example: "Chapter 1: Introduction to ROS 2"
+            module:
+              type: string
+              example: "module-1-ros2"
+            keywords:
+              type: array
+              items:
+                type: string
+              example: ["ros2", "middleware", "robotics"]
+            persona_relevance:
+              type: object
+              properties:
+                beginner:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                software_engineer:
+                  type: integer
+                  example: 4
+                robotics_student:
+                  type: integer
+                  example: 4
+                ai_researcher:
+                  type: integer
+                  example: 3
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid query: query must be between 1 and 500 characters"
+        code:
+          type: string
+          description: Error code
+          example: "INVALID_REQUEST"

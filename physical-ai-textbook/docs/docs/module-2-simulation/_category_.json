@@ -1,0 +1,8 @@
+{
+  "label": "Module 2: The Digital Twin (Simulation & Virtual Environments)",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Learn how robots are designed, tested, and trained in simulated environments before entering the physical world, using physics-based digital twins."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "label": "Module 1: The Robotic Nervous System (ROS 2)",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "Learn ROS 2 as the nervous system of physical AI systems, enabling communication, control, and coordination between software intelligence and robotic hardware."
+  }
+}
