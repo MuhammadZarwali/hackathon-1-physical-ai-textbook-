@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd physical-ai-textbook/docs && npm install && npm run build",
+  "outputDirectory": "physical-ai-textbook/docs/build",
+  "framework": null,
+  "installCommand": "cd physical-ai-textbook/docs && npm install"
+}
