@@ -1,6 +1,10 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from .env.development or .env.production
+dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development' });
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -33,6 +37,11 @@ const config: Config = {
     locales: ['en'],
   },
 
+  // Custom fields to expose environment variables to React components
+  customFields: {
+    API_URL: process.env.API_URL || 'http://localhost:8001',
+  },
+
   presets: [
     [
       'classic',
@@ -58,10 +67,6 @@ const config: Config = {
     },
     navbar: {
       title: 'Physical AI & Humanoid Robotics',
-      logo: {
-        alt: 'Physical AI Textbook Logo',
-        src: 'img/logo.svg',
-      },
       items: [
         {
           type: 'docSidebar',
@@ -70,7 +75,7 @@ const config: Config = {
           label: 'Textbook',
         },
         {
-          href: 'https://github.com/your-username/hackathon-1',
+          href: 'https://github.com/MuhammadZarwali/Hackathon',
           label: 'GitHub',
           position: 'right',
         },
@@ -90,6 +95,18 @@ const config: Config = {
               label: 'Module 1: ROS 2',
               to: '/module-1-ros2/chapter-1-introduction-to-ros2',
             },
+            {
+              label: 'Module 2: Simulation',
+              to: '/module-2-simulation/chapter-1-introduction-to-digital-twins',
+            },
+            {
+              label: 'Module 3: Isaac AI Brain',
+              to: '/module-3-isaac-ai-brain/chapter-1-introduction-to-nvidia-isaac',
+            },
+            {
+              label: 'Module 4: VLA Models',
+              to: '/module-4-vision-language-action/chapter-1-introduction-to-vla',
+            },
           ],
         },
         {
@@ -100,13 +117,26 @@ const config: Config = {
               href: 'https://docs.ros.org/en/humble/',
             },
             {
-              label: 'GitHub Repository',
-              href: 'https://github.com/your-username/hackathon-1',
+              label: 'Hackathon Project',
+              href: 'https://github.com/MuhammadZarwali/Hackathon',
+            },
+          ],
+        },
+        {
+          title: 'Connect',
+          items: [
+            {
+              label: 'LinkedIn',
+              href: 'https://www.linkedin.com/in/muhammad-zarwali-b3260a2b4',
+            },
+            {
+              label: 'GitHub Profile',
+              href: 'https://github.com/MuhammadZarwali',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Physical AI Textbook Project. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Muhammad Zarwali - Physical AI Textbook Project. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
