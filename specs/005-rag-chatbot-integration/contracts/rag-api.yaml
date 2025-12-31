@@ -1,0 +1,300 @@
+openapi: 3.0.3
+info:
+  title: RAG Chatbot API
+  description: |
+    API for the Physical AI Textbook RAG chatbot.
+    Provides book-grounded Q&A using Cohere embeddings and Qdrant vector search.
+  version: 1.0.0
+  contact:
+    name: Physical AI Textbook
+    url: https://hackathon-1-physical-ai-textbook-phi.vercel.app
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://api.example.com
+    description: Production (TBD)
+
+paths:
+  /query:
+    post:
+      summary: Query the textbook
+      description: |
+        Submit a question and receive a grounded response from the textbook.
+        Supports Global Mode (entire book) and Selected-Text Mode (specific passage).
+      operationId: queryTextbook
+      tags:
+        - RAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              globalQuery:
+                summary: Global mode query
+                value:
+                  question: "What is ROS 2?"
+                  mode: "global"
+                  persona: "software_engineer"
+              selectedQuery:
+                summary: Selected text query
+                value:
+                  question: "Explain this in simpler terms"
+                  mode: "selected"
+                  selected_text: "The DDS middleware provides..."
+                  persona: "beginner"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /embed:
+    post:
+      summary: Embed textbook chunks (Admin)
+      description: |
+        Batch embed and store textbook chunks in Qdrant.
+        Used during content indexing.
+      operationId: embedChunks
+      tags:
+        - Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbedRequest'
+      responses:
+        '200':
+          description: Chunks embedded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbedResponse'
+        '400':
+          description: Invalid chunks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is running and dependencies are connected.
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  qdrant:
+                    type: string
+                    example: "connected"
+                  cohere:
+                    type: string
+                    example: "available"
+
+  /collection/info:
+    get:
+      summary: Get collection info
+      description: Get statistics about the indexed textbook content.
+      operationId: getCollectionInfo
+      tags:
+        - System
+      responses:
+        '200':
+          description: Collection statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collection_name:
+                    type: string
+                    example: "textbook_chunks"
+                  vectors_count:
+                    type: integer
+                    example: 84
+                  points_count:
+                    type: integer
+                    example: 84
+
+components:
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - question
+        - mode
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: User's natural language question
+          example: "What is ROS 2?"
+        mode:
+          type: string
+          enum: [global, selected]
+          description: Query mode - global searches entire book, selected searches provided text
+          example: "global"
+        selected_text:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          description: Required when mode is 'selected'. The text passage to search within.
+          example: "The DDS middleware provides reliable communication..."
+        persona:
+          type: string
+          enum: [beginner, software_engineer, robotics_student, ai_researcher]
+          description: Optional user persona for response adaptation
+          example: "software_engineer"
+
+    QueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+          description: Generated response grounded in textbook content
+          example: "ROS 2 is a flexible framework for writing robot software..."
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceReference'
+        confidence:
+          type: string
+          enum: [high, medium, low, none]
+          description: Confidence level based on retrieval scores
+          example: "high"
+        mode_used:
+          type: string
+          enum: [global, selected]
+          example: "global"
+        chunks_retrieved:
+          type: integer
+          description: Number of chunks used to generate response
+          example: 3
+
+    SourceReference:
+      type: object
+      properties:
+        chapter_title:
+          type: string
+          example: "Introduction to ROS 2"
+        section_title:
+          type: string
+          example: "What is ROS 2?"
+        module:
+          type: string
+          example: "Module 1"
+        url:
+          type: string
+          format: uri-reference
+          example: "/docs/module-1-ros2/chapter-1-introduction-to-ros2#what-is-ros-2"
+        relevance_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.92
+
+    EmbedRequest:
+      type: object
+      required:
+        - chunks
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChunkInput'
+
+    ChunkInput:
+      type: object
+      required:
+        - chunk_id
+        - text
+        - chapter_title
+        - section_title
+        - module
+        - url
+      properties:
+        chunk_id:
+          type: string
+          example: "chapter-1-ros2-section-1"
+        text:
+          type: string
+          minLength: 100
+          maxLength: 3000
+          example: "## What is ROS 2?\n\nROS 2 is a flexible framework..."
+        chapter_title:
+          type: string
+          example: "Introduction to ROS 2"
+        section_title:
+          type: string
+          example: "What is ROS 2?"
+        module:
+          type: string
+          example: "module-1-ros2"
+        url:
+          type: string
+          example: "/docs/module-1-ros2/chapter-1#what-is-ros-2"
+
+    EmbedResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Successfully embedded 7 chunks"
+        chunks_processed:
+          type: integer
+          example: 7
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "I couldn't find information about this topic in the textbook."
+        code:
+          type: string
+          enum: [NO_RESULTS, INVALID_INPUT, SERVICE_ERROR, RATE_LIMITED]
+          example: "NO_RESULTS"
+        suggestion:
+          type: string
+          example: "Try rephrasing your question or asking about a different topic."
+
+tags:
+  - name: RAG
+    description: RAG query endpoints
+  - name: Admin
+    description: Administrative endpoints for content management
+  - name: System
+    description: System health and status endpoints

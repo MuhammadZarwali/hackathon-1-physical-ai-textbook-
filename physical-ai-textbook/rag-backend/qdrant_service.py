@@ -37,7 +37,7 @@ class QdrantService:
             self.client = QdrantClient(url=qdrant_url)
 
         self.collection_name = "textbook_chunks"
-        self.vector_size = 768  # Default for Gemini text-embedding-004
+        self.vector_size = 1024  # Cohere embed-english-v3.0
 
     def initialize_collection(self):
         """
@@ -164,10 +164,13 @@ class QdrantService:
         """Get information about the collection (size, vectors, etc.)"""
         try:
             info = self.client.get_collection(collection_name=self.collection_name)
+            # Handle different Qdrant client versions
+            points_count = getattr(info, 'points_count', None)
+            if points_count is None:
+                points_count = getattr(info, 'vectors_count', 0)
             return {
-                "vectors_count": info.vectors_count,
-                "points_count": info.points_count,
-                "status": info.status
+                "points_count": points_count,
+                "status": getattr(info, 'status', 'unknown')
             }
         except Exception as e:
             logger.error(f"Error getting collection info: {e}")
