@@ -19,7 +19,7 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://hackathon-1-physical-ai-textbook-phi.vercel.app',
+  url: 'https://muhammadzarwali-hackathon-1-physica.vercel.app',
   // Set the /<baseUrl>/ pathname under which your site is served
   baseUrl: '/',
 
