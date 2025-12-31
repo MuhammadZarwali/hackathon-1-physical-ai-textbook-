@@ -1,0 +1,354 @@
+openapi: 3.0.3
+info:
+  title: RAG Chatbot API
+  description: Physical AI Textbook RAG Chatbot with Cohere - Query endpoint for book-grounded responses
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://github.com/MuhammadZarwali/hackathon-1-physical-ai-textbook-
+
+servers:
+  - url: http://localhost:8001
+    description: Local development server
+  - url: https://rag-backend-production.railway.app
+    description: Production server (Railway deployment)
+
+paths:
+  /query:
+    post:
+      summary: Query the textbook using RAG
+      description: |
+        Send a question about the Physical AI & Humanoid Robotics textbook and receive a book-grounded answer with source citations.
+
+        Supports two query modes:
+        - **global**: Search the entire textbook
+        - **selected**: Search with user-selected text as context
+
+        Supports persona-based response adaptation for 4 user types:
+        - beginner
+        - software_engineer
+        - robotics_student
+        - ai_researcher
+      operationId: queryTextbook
+      tags:
+        - RAG Query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              globalQuery:
+                summary: Global query with persona
+                value:
+                  question: "What is ROS 2 and why is it used in robotics?"
+                  mode: "global"
+                  persona: "beginner"
+              selectedTextQuery:
+                summary: Selected-text query
+                value:
+                  question: "How does this relate to real-time control?"
+                  mode: "selected"
+                  selected_text: "ROS 2 uses DDS (Data Distribution Service) for communication between nodes. DDS provides real-time publish-subscribe messaging with quality-of-service controls."
+                  persona: "software_engineer"
+              minimalQuery:
+                summary: Minimal query (no persona)
+                value:
+                  question: "What is Gazebo?"
+                  mode: "global"
+              greeting:
+                summary: Greeting (no retrieval)
+                value:
+                  question: "Hi!"
+                  mode: "global"
+      responses:
+        '200':
+          description: Successful query response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              examples:
+                highConfidence:
+                  summary: High confidence answer
+                  value:
+                    answer: "ROS 2 (Robot Operating System 2) is the next generation of ROS, designed for production robotics systems. It provides a framework for developing robot software with improved real-time capabilities, security features, and multi-robot support."
+                    sources:
+                      - chapter_title: "Module 1: Introduction to ROS 2"
+                        section_title: "What is ROS 2?"
+                        module: "module-1"
+                        url: "/docs/module-1/intro#what-is-ros2"
+                        relevance_score: 0.92
+                      - chapter_title: "Module 1: Introduction to ROS 2"
+                        section_title: "ROS 2 Architecture"
+                        module: "module-1"
+                        url: "/docs/module-1/architecture"
+                        relevance_score: 0.87
+                    confidence: "high"
+                    mode_used: "global"
+                    chunks_retrieved: 3
+                greetingResponse:
+                  summary: Greeting response (no retrieval)
+                  value:
+                    answer: "Hello! I'm your Physical AI & Humanoid Robotics textbook assistant. How can I help you today?"
+                    sources: []
+                    confidence: "high"
+                    mode_used: "direct"
+                    chunks_retrieved: 0
+                lowConfidence:
+                  summary: Low confidence answer (limited coverage)
+                  value:
+                    answer: "**Note: The textbook has limited coverage of this specific topic.**\n\nThe textbook briefly mentions neural networks in the context of Vision-Language-Action models."
+                    sources:
+                      - chapter_title: "Module 4: Vision-Language-Action Models"
+                        section_title: "VLA Architecture Overview"
+                        module: "module-4"
+                        url: "/docs/module-4/vla-architecture"
+                        relevance_score: 0.62
+                    confidence: "low"
+                    mode_used: "global"
+                    chunks_retrieved: 1
+                noResults:
+                  summary: No results found
+                  value:
+                    answer: "I couldn't find information about this topic in the textbook. The textbook covers ROS 2, simulation with Gazebo, NVIDIA Isaac, and Vision-Language-Action models. Try rephrasing your question or asking about one of these topics."
+                    sources: []
+                    confidence: "none"
+                    mode_used: "global"
+                    chunks_retrieved: 0
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingSelectedText:
+                  summary: Missing selected_text when mode is 'selected'
+                  value:
+                    detail: "selected_text is required when mode is 'selected'"
+                emptyQuestion:
+                  summary: Empty question
+                  value:
+                    detail: "question must not be empty"
+                questionTooLong:
+                  summary: Question exceeds 1000 characters
+                  value:
+                    detail: "question must not exceed 1000 characters"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                genericError:
+                  summary: Server error
+                  value:
+                    detail: "An error occurred while processing your query: connection timeout"
+
+  /health:
+    get:
+      summary: Health check
+      description: Check if the RAG service is healthy and connected to dependencies
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded]
+                  service:
+                    type: string
+                  cohere:
+                    type: string
+                  qdrant:
+                    type: string
+                    enum: [connected, degraded, disconnected]
+                  chunks_indexed:
+                    type: integer
+              example:
+                status: "healthy"
+                service: "rag-chatbot"
+                cohere: "available"
+                qdrant: "connected"
+                chunks_indexed: 106
+
+  /collection/info:
+    get:
+      summary: Get Qdrant collection statistics
+      description: Retrieve information about the textbook_chunks collection in Qdrant
+      operationId: collectionInfo
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Collection information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collection_name:
+                    type: string
+                  points_count:
+                    type: integer
+                  status:
+                    type: string
+                  embedding_model:
+                    type: string
+                  vector_dimensions:
+                    type: integer
+              example:
+                collection_name: "textbook_chunks"
+                points_count: 106
+                status: "green"
+                embedding_model: "cohere-embed-english-v3.0"
+                vector_dimensions: 1024
+        '500':
+          description: Error retrieving collection info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - question
+        - mode
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: User's question about the textbook
+          example: "What is ROS 2?"
+        mode:
+          type: string
+          enum: [global, selected]
+          description: |
+            Query mode:
+            - **global**: Search entire textbook
+            - **selected**: Search with user-selected text as context
+          example: "global"
+        selected_text:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          description: Selected text for context (required if mode is 'selected')
+          example: "ROS 2 uses DDS for communication between nodes."
+        persona:
+          type: string
+          enum: [beginner, software_engineer, robotics_student, ai_researcher]
+          description: |
+            User expertise level for response adaptation:
+            - **beginner**: No prior robotics or AI experience
+            - **software_engineer**: Strong programming skills, new to robotics
+            - **robotics_student**: Familiar with kinematics/controls, new to AI
+            - **ai_researcher**: Deep AI knowledge, new to embodied systems
+          example: "beginner"
+
+    QueryResponse:
+      type: object
+      required:
+        - answer
+        - sources
+        - confidence
+        - mode_used
+        - chunks_retrieved
+      properties:
+        answer:
+          type: string
+          description: Generated answer text (book-grounded or greeting response)
+          example: "ROS 2 is the second generation of the Robot Operating System, designed for production robotics systems."
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceReference'
+          description: Retrieved textbook chunks with citations (empty for greetings)
+        confidence:
+          type: string
+          enum: [high, medium, low, none]
+          description: |
+            Retrieval confidence level:
+            - **high**: Max relevance score ≥ 0.85 AND ≥2 chunks retrieved
+            - **medium**: Max relevance score ≥ 0.70
+            - **low**: Max relevance score ≥ 0.50
+            - **none**: No chunks retrieved or score < 0.50
+          example: "high"
+        mode_used:
+          type: string
+          enum: [global, selected, direct]
+          description: |
+            Actual mode used for this query:
+            - **global**: Full-book search performed
+            - **selected**: Context-specific search performed
+            - **direct**: No retrieval (greeting or acknowledgment)
+          example: "global"
+        chunks_retrieved:
+          type: integer
+          minimum: 0
+          description: Number of textbook chunks used for generation (0 for greetings)
+          example: 3
+
+    SourceReference:
+      type: object
+      required:
+        - chapter_title
+        - section_title
+        - module
+        - url
+        - relevance_score
+      properties:
+        chapter_title:
+          type: string
+          description: Chapter name
+          example: "Module 1: Introduction to ROS 2"
+        section_title:
+          type: string
+          description: Section name
+          example: "What is ROS 2?"
+        module:
+          type: string
+          description: Module identifier
+          example: "module-1"
+        url:
+          type: string
+          description: Clickable link to textbook section
+          example: "/docs/module-1/intro#what-is-ros2"
+        relevance_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: Vector search similarity score (0.0-1.0)
+          example: 0.92
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: "selected_text is required when mode is 'selected'"
+
+tags:
+  - name: RAG Query
+    description: Query the textbook using retrieval-augmented generation
+  - name: Health
+    description: Service health and status checks
+  - name: Admin
+    description: Administrative and diagnostic endpoints
